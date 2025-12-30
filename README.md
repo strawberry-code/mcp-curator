@@ -16,6 +16,11 @@ A native desktop application to view and manage MCP (Model Context Protocol) con
 
 Download the latest `.dmg` from [Releases](https://github.com/strawberry-code/mcp-curator/releases) and drag to Applications.
 
+**Note:** The app is not signed. After first launch, if macOS shows "app is damaged", run:
+```bash
+xattr -cr "/Applications/MCP Curator.app"
+```
+
 ### From Source
 
 **Requirements:** Go 1.24+

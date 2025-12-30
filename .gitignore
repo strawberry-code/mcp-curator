@@ -6,8 +6,9 @@ bin/
 *.so
 *.dylib
 
-# macOS app bundle
+# macOS app bundle and disk image
 *.app/
+*.dmg
 
 # Test binary, built with `go test -c`
 *.test
