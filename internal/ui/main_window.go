@@ -22,6 +22,7 @@ type MainWindow struct {
 	tree        *widget.Tree
 	detailPanel *fyne.Container
 	selectedID  string
+	mainContent fyne.CanvasObject
 }
 
 // NewMainWindow crea la finestra principale
@@ -34,14 +35,21 @@ func NewMainWindow(app fyne.App, service *application.MCPService) *MainWindow {
 		service: service,
 	}
 
-	mw.buildUI()
-
 	return mw
 }
 
-// Show mostra la finestra
+// Show mostra la finestra con splash screen iniziale
 func (mw *MainWindow) Show() {
 	mw.window.Show()
+
+	// Mostra splash view, poi passa al contenuto principale
+	splash := NewSplashView(mw.window, func() {
+		mw.buildUI()
+		mw.window.SetContent(mw.mainContent)
+	})
+
+	mw.window.SetContent(splash.Content())
+	splash.StartAnimation()
 }
 
 // buildUI costruisce l'interfaccia utente
@@ -65,15 +73,13 @@ func (mw *MainWindow) buildUI() {
 	split.SetOffset(0.35)
 
 	// Layout principale
-	content := container.NewBorder(
+	mw.mainContent = container.NewBorder(
 		toolbar,
 		nil,
 		nil,
 		nil,
 		split,
 	)
-
-	mw.window.SetContent(content)
 }
 
 // createToolbar crea la toolbar
@@ -297,7 +303,7 @@ func (mw *MainWindow) showServerDetails(name string, server *domain.MCPServer, s
 		mw.showMoveServerDialog(name, scope == "Globale", projectPath)
 	})
 
-	mw.detailPanel.Add(container.NewHBox(editBtn, moveBtn, deleteBtn))
+	mw.detailPanel.Add(container.NewCenter(container.NewHBox(editBtn, moveBtn, deleteBtn)))
 }
 
 // showAddServerDialog mostra il dialog per aggiungere un server

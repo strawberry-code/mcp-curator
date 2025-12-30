@@ -7,6 +7,18 @@ e questo progetto aderisce al [Semantic Versioning](https://semver.org/lang/it/)
 
 ## [Unreleased]
 
+### Aggiunto
+
+- Icona applicazione (worker SVG/PNG)
+- Target Makefile `install` per installare l'app in /Applications
+- Target Makefile `uninstall` per rimuovere l'app
+- Splash screen animata minimalista con effetto riempimento cerchio (2.5 secondi)
+- Tema personalizzato con palette bianco e antracite
+
+### Modificato
+
+- Bottoni azione (Modifica, Sposta, Elimina) centrati orizzontalmente nel pannello dettagli
+
 ## [0.0.1] - 2025-12-30
 
 ### Aggiunto

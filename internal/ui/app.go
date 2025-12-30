@@ -30,19 +30,19 @@ func NewApp() (*App, error) {
 	}
 
 	fyneApp := app.NewWithID(appID)
+	fyneApp.Settings().SetTheme(&CuratorTheme{})
 
 	a := &App{
 		fyneApp: fyneApp,
 		service: service,
 	}
 
-	a.mainWindow = NewMainWindow(fyneApp, service)
-
 	return a, nil
 }
 
 // Run avvia l'applicazione
 func (a *App) Run() {
+	a.mainWindow = NewMainWindow(a.fyneApp, a.service)
 	a.mainWindow.Show()
 	a.fyneApp.Run()
 }
