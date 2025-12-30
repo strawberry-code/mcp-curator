@@ -7,6 +7,8 @@ e questo progetto aderisce al [Semantic Versioning](https://semver.org/lang/it/)
 
 ## [Unreleased]
 
+## [0.0.3] - 2025-12-30
+
 ### Aggiunto
 
 - Supporto multilingua (i18n) con 10 lingue: italiano, inglese, francese, tedesco, spagnolo, portoghese, giapponese, coreano, cinese, ucraino
@@ -58,6 +60,7 @@ e questo progetto aderisce al [Semantic Versioning](https://semver.org/lang/it/)
 - Go 1.24+
 - Fyne v2.7.1 (UI toolkit nativo cross-platform)
 
-[Unreleased]: https://github.com/strawberry-code/mcp-curator/compare/v0.0.2...HEAD
+[Unreleased]: https://github.com/strawberry-code/mcp-curator/compare/v0.0.3...HEAD
+[0.0.3]: https://github.com/strawberry-code/mcp-curator/compare/v0.0.2...v0.0.3
 [0.0.2]: https://github.com/strawberry-code/mcp-curator/compare/v0.0.1...v0.0.2
 [0.0.1]: https://github.com/strawberry-code/mcp-curator/releases/tag/v0.0.1
