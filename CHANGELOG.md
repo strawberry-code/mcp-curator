@@ -7,11 +7,17 @@ e questo progetto aderisce al [Semantic Versioning](https://semver.org/lang/it/)
 
 ## [Unreleased]
 
+### Aggiunto
+
+- Supporto multilingua (i18n) con 10 lingue: italiano, inglese, francese, tedesco, spagnolo, portoghese, giapponese, coreano, cinese, ucraino
+- Selettore lingua compatto nella toolbar con cambio dinamico dell'interfaccia
+
 ### Modificato
 
 - Form server: rimosso scroll annidato, entry singole per args e env
 - Colore bottoni dialog migliorato per maggior contrasto
 - Dimensione finestra iniziale aumentata a 900x800
+- Colore focus migliorato per mantenere leggibilità testo sui widget
 
 ## [0.0.2] - 2025-12-30
 

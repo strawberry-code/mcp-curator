@@ -9,6 +9,7 @@ import (
 
 	"github.com/strawberry-code/mcp-curator/internal/application"
 	"github.com/strawberry-code/mcp-curator/internal/domain"
+	"github.com/strawberry-code/mcp-curator/internal/i18n"
 )
 
 // ServerForm è il form per aggiungere/modificare un server
@@ -49,7 +50,7 @@ func NewServerForm(service *application.MCPService, server *domain.MCPServer, na
 func (sf *ServerForm) build() {
 	// Nome
 	sf.nameEntry = widget.NewEntry()
-	sf.nameEntry.SetPlaceHolder("Nome del server")
+	sf.nameEntry.SetPlaceHolder(i18n.T("form.name_hint"))
 	sf.nameEntry.Wrapping = fyne.TextWrapOff
 	if sf.name != "" {
 		sf.nameEntry.SetText(sf.name)
@@ -62,22 +63,22 @@ func (sf *ServerForm) build() {
 
 	// Command
 	sf.commandEntry = widget.NewEntry()
-	sf.commandEntry.SetPlaceHolder("Comando (es: uvx, npx)")
+	sf.commandEntry.SetPlaceHolder(i18n.T("form.command_hint"))
 	sf.commandEntry.Wrapping = fyne.TextWrapOff
 
 	// Args
 	sf.argsEntry = widget.NewEntry()
-	sf.argsEntry.SetPlaceHolder("Argomenti separati da spazio (es: -y mcp-server)")
+	sf.argsEntry.SetPlaceHolder(i18n.T("form.args_hint"))
 	sf.argsEntry.Wrapping = fyne.TextWrapOff
 
 	// URL
 	sf.urlEntry = widget.NewEntry()
-	sf.urlEntry.SetPlaceHolder("URL (per http/sse)")
+	sf.urlEntry.SetPlaceHolder(i18n.T("form.url_hint"))
 	sf.urlEntry.Wrapping = fyne.TextWrapOff
 
 	// Env
 	sf.envEntry = widget.NewEntry()
-	sf.envEntry.SetPlaceHolder("KEY=value, KEY2=value2 (separati da virgola)")
+	sf.envEntry.SetPlaceHolder(i18n.T("form.env_hint"))
 	sf.envEntry.Wrapping = fyne.TextWrapOff
 
 	// Scope
@@ -88,9 +89,9 @@ func (sf *ServerForm) build() {
 	}
 
 	sf.projectSelect = widget.NewSelect(projectOptions, nil)
-	sf.globalRadio = widget.NewRadioGroup([]string{"Globale", "Progetto"}, func(selected string) {
+	sf.globalRadio = widget.NewRadioGroup([]string{i18n.T("form.scope_global"), i18n.T("form.scope_project")}, func(selected string) {
 		sf.projectSelect.Enable()
-		if selected == "Globale" {
+		if selected == i18n.T("form.scope_global") {
 			sf.projectSelect.Disable()
 		}
 	})
@@ -117,10 +118,10 @@ func (sf *ServerForm) build() {
 
 	// Imposta scope
 	if sf.isGlobal {
-		sf.globalRadio.SetSelected("Globale")
+		sf.globalRadio.SetSelected(i18n.T("form.scope_global"))
 		sf.projectSelect.Disable()
 	} else {
-		sf.globalRadio.SetSelected("Progetto")
+		sf.globalRadio.SetSelected(i18n.T("form.scope_project"))
 		sf.projectSelect.SetSelected(sf.projectPath)
 	}
 
@@ -132,22 +133,22 @@ func (sf *ServerForm) build() {
 
 	// Costruisci container senza scroll (dialog sarà abbastanza alto)
 	sf.container = container.NewVBox(
-		widget.NewLabel("Nome:"),
+		widget.NewLabel(i18n.T("form.name")+":"),
 		sf.nameEntry,
 		widget.NewSeparator(),
-		widget.NewLabel("Scope:"),
+		widget.NewLabel(i18n.T("form.scope")+":"),
 		sf.globalRadio,
 		sf.projectSelect,
 		widget.NewSeparator(),
-		widget.NewLabel("Tipo:"),
+		widget.NewLabel(i18n.T("form.type")+":"),
 		sf.typeSelect,
-		widget.NewLabel("Comando:"),
+		widget.NewLabel(i18n.T("form.command")+":"),
 		sf.commandEntry,
-		widget.NewLabel("Argomenti:"),
+		widget.NewLabel(i18n.T("form.args")+":"),
 		sf.argsEntry,
-		widget.NewLabel("URL:"),
+		widget.NewLabel(i18n.T("form.url")+":"),
 		sf.urlEntry,
-		widget.NewLabel("Variabili Ambiente:"),
+		widget.NewLabel(i18n.T("form.env")+":"),
 		sf.envEntry,
 	)
 }
@@ -193,7 +194,7 @@ func (sf *ServerForm) Save() error {
 	name := strings.TrimSpace(sf.nameEntry.Text)
 	server := sf.getServer()
 
-	if sf.globalRadio.Selected == "Globale" {
+	if sf.globalRadio.Selected == i18n.T("form.scope_global") {
 		return sf.service.AddGlobalServer(name, server)
 	}
 

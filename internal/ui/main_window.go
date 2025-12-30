@@ -13,6 +13,7 @@ import (
 
 	"github.com/strawberry-code/mcp-curator/internal/application"
 	"github.com/strawberry-code/mcp-curator/internal/domain"
+	"github.com/strawberry-code/mcp-curator/internal/i18n"
 	"github.com/strawberry-code/mcp-curator/internal/version"
 )
 
@@ -24,6 +25,11 @@ type MainWindow struct {
 	detailPanel *fyne.Container
 	selectedID  string
 	mainContent fyne.CanvasObject
+
+	// Elementi UI che richiedono aggiornamento su cambio lingua
+	addBtn     *widget.Button
+	refreshBtn *widget.Button
+	langSelect *widget.Select
 }
 
 // NewMainWindow crea la finestra principale
@@ -60,7 +66,7 @@ func (mw *MainWindow) buildUI() {
 
 	// Pannello dettagli (inizialmente vuoto)
 	mw.detailPanel = container.NewVBox(
-		widget.NewLabel("Seleziona un server per vedere i dettagli"),
+		widget.NewLabel(i18n.T("detail.select_server")),
 	)
 
 	// Toolbar
@@ -81,30 +87,35 @@ func (mw *MainWindow) buildUI() {
 		nil,
 		split,
 	)
+
+	// Registra callback per cambio lingua
+	i18n.OnChange(func(lang i18n.Lang) {
+		mw.updateUIStrings()
+	})
 }
 
 // createToolbar crea la toolbar
 func (mw *MainWindow) createToolbar() *fyne.Container {
-	addBtn := widget.NewButtonWithIcon("Aggiungi Server", theme.ContentAddIcon(), func() {
+	mw.addBtn = widget.NewButtonWithIcon(i18n.T("toolbar.add_server"), theme.ContentAddIcon(), func() {
 		mw.showAddServerDialog()
 	})
 
-	langSelect := widget.NewSelect([]string{"IT", "EN", "FR", "DE", "ES", "PT", "JA", "KO", "CN", "UK"}, func(lang string) {
+	mw.langSelect = widget.NewSelect(i18n.SupportedLangs, func(lang string) {
 		mw.changeLanguage(lang)
 	})
-	langSelect.SetSelected("IT")
+	mw.langSelect.SetSelected(string(i18n.CurrentLang()))
 
-	refreshBtn := widget.NewButtonWithIcon("Aggiorna", theme.ViewRefreshIcon(), func() {
+	mw.refreshBtn = widget.NewButtonWithIcon(i18n.T("toolbar.refresh"), theme.ViewRefreshIcon(), func() {
 		mw.refresh()
 	})
 
 	rightControls := container.NewHBox(
-		langSelect,
-		refreshBtn,
+		mw.langSelect,
+		mw.refreshBtn,
 	)
 
 	toolbar := container.NewHBox(
-		addBtn,
+		mw.addBtn,
 		layout.NewSpacer(),
 		rightControls,
 	)
@@ -118,8 +129,25 @@ func (mw *MainWindow) createToolbar() *fyne.Container {
 
 // changeLanguage cambia la lingua dell'interfaccia
 func (mw *MainWindow) changeLanguage(lang string) {
-	// TODO: implementare i18n
-	_ = lang
+	i18n.SetLang(lang)
+}
+
+// updateUIStrings aggiorna tutte le stringhe dell'interfaccia
+func (mw *MainWindow) updateUIStrings() {
+	// Aggiorna bottoni toolbar
+	mw.addBtn.SetText(i18n.T("toolbar.add_server"))
+	mw.refreshBtn.SetText(i18n.T("toolbar.refresh"))
+
+	// Aggiorna tree view
+	mw.tree.Refresh()
+
+	// Aggiorna pannello dettagli
+	if mw.selectedID != "" {
+		mw.updateDetailPanel(mw.selectedID)
+	} else {
+		mw.detailPanel.RemoveAll()
+		mw.detailPanel.Add(widget.NewLabel(i18n.T("detail.select_server")))
+	}
 }
 
 // createTree crea il tree view
@@ -264,9 +292,9 @@ func (mw *MainWindow) getNodeIcon(id widget.TreeNodeID, config *domain.Configura
 func (mw *MainWindow) getNodeText(id widget.TreeNodeID, config *domain.Configuration) string {
 	switch {
 	case id == "global":
-		return "Globale"
+		return i18n.T("tree.global")
 	case id == "projects":
-		return "Progetti"
+		return i18n.T("tree.projects")
 	case len(id) > 7 && id[:7] == "global:":
 		return id[7:]
 	case len(id) > 8 && id[:8] == "project:":
@@ -316,7 +344,7 @@ func (mw *MainWindow) updateDetailPanel(id string) {
 	case len(id) > 7 && id[:7] == "global:":
 		serverName := id[7:]
 		if s, ok := config.GlobalServers[serverName]; ok {
-			mw.showServerDetails(serverName, &s, "Globale", "")
+			mw.showServerDetails(serverName, &s, i18n.T("tree.global"), "")
 			return
 		}
 	case len(id) > 14 && id[:14] == "projectserver:":
@@ -327,7 +355,7 @@ func (mw *MainWindow) updateDetailPanel(id string) {
 				serverName := rest[i+1:]
 				if project, ok := config.Projects[projectPath]; ok {
 					if s, ok := project.MCPServers[serverName]; ok {
-						mw.showServerDetails(serverName, &s, "Progetto: "+project.Name, projectPath)
+						mw.showServerDetails(serverName, &s, i18n.T("detail.project")+": "+project.Name, projectPath)
 						return
 					}
 				}
@@ -337,7 +365,7 @@ func (mw *MainWindow) updateDetailPanel(id string) {
 	}
 
 	mw.detailPanel.RemoveAll()
-	mw.detailPanel.Add(widget.NewLabel("Seleziona un elemento per vedere i dettagli"))
+	mw.detailPanel.Add(widget.NewLabel(i18n.T("detail.select_item")))
 }
 
 // showProjectDetails mostra i dettagli di un progetto
@@ -345,19 +373,19 @@ func (mw *MainWindow) showProjectDetails(path string, project *domain.Project) {
 	mw.detailPanel.RemoveAll()
 
 	// Nome progetto
-	mw.detailPanel.Add(widget.NewLabelWithStyle("Progetto: "+project.Name, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}))
+	mw.detailPanel.Add(widget.NewLabelWithStyle(i18n.T("detail.project")+": "+project.Name, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}))
 	mw.detailPanel.Add(widget.NewSeparator())
 
 	// Path
-	mw.detailPanel.Add(widget.NewLabel("Path: " + path))
+	mw.detailPanel.Add(widget.NewLabel(i18n.T("detail.path")+": "+path))
 
 	// Numero server MCP
 	serverCount := len(project.MCPServers)
-	mw.detailPanel.Add(widget.NewLabel(fmt.Sprintf("Server MCP: %d", serverCount)))
+	mw.detailPanel.Add(widget.NewLabel(fmt.Sprintf("%s: %d", i18n.T("detail.mcp_servers"), serverCount)))
 
 	// File di configurazione presenti
 	mw.detailPanel.Add(widget.NewSeparator())
-	mw.detailPanel.Add(widget.NewLabel("Configurazioni:"))
+	mw.detailPanel.Add(widget.NewLabel(i18n.T("detail.configs")+":"))
 
 	if project.HasMCPJson {
 		mw.detailPanel.Add(widget.NewLabel("  • .mcp.json"))
@@ -371,7 +399,7 @@ func (mw *MainWindow) showProjectDetails(path string, project *domain.Project) {
 
 	// Bottone per aggiungere server al progetto
 	mw.detailPanel.Add(widget.NewSeparator())
-	addServerBtn := widget.NewButtonWithIcon("Aggiungi Server", theme.ContentAddIcon(), func() {
+	addServerBtn := widget.NewButtonWithIcon(i18n.T("btn.add_server"), theme.ContentAddIcon(), func() {
 		mw.showAddServerToProjectDialog(path)
 	})
 	mw.detailPanel.Add(container.NewCenter(addServerBtn))
@@ -381,9 +409,11 @@ func (mw *MainWindow) showProjectDetails(path string, project *domain.Project) {
 func (mw *MainWindow) showServerDetails(name string, server *domain.MCPServer, scope, projectPath string) {
 	mw.detailPanel.RemoveAll()
 
+	isGlobal := scope == i18n.T("tree.global")
+
 	// Nome e scope
-	mw.detailPanel.Add(widget.NewLabelWithStyle("Server: "+name, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}))
-	mw.detailPanel.Add(widget.NewLabel("Scope: " + scope))
+	mw.detailPanel.Add(widget.NewLabelWithStyle(i18n.T("detail.server")+": "+name, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}))
+	mw.detailPanel.Add(widget.NewLabel(i18n.T("detail.scope")+": "+scope))
 	mw.detailPanel.Add(widget.NewSeparator())
 
 	// Tipo
@@ -395,16 +425,16 @@ func (mw *MainWindow) showServerDetails(name string, server *domain.MCPServer, s
 			serverType = "http/sse"
 		}
 	}
-	mw.detailPanel.Add(widget.NewLabel("Tipo: " + serverType))
+	mw.detailPanel.Add(widget.NewLabel(i18n.T("detail.type")+": "+serverType))
 
 	// Comando (per stdio)
 	if server.Command != "" {
-		mw.detailPanel.Add(widget.NewLabel("Comando: " + server.Command))
+		mw.detailPanel.Add(widget.NewLabel(i18n.T("detail.command")+": "+server.Command))
 	}
 
 	// Args
 	if len(server.Args) > 0 {
-		mw.detailPanel.Add(widget.NewLabel("Args:"))
+		mw.detailPanel.Add(widget.NewLabel(i18n.T("detail.args")+":"))
 		for _, arg := range server.Args {
 			mw.detailPanel.Add(widget.NewLabel("  " + arg))
 		}
@@ -412,13 +442,13 @@ func (mw *MainWindow) showServerDetails(name string, server *domain.MCPServer, s
 
 	// URL (per http/sse)
 	if server.URL != "" {
-		mw.detailPanel.Add(widget.NewLabel("URL: " + server.URL))
+		mw.detailPanel.Add(widget.NewLabel(i18n.T("detail.url")+": "+server.URL))
 	}
 
 	// Env
 	if len(server.Env) > 0 {
 		mw.detailPanel.Add(widget.NewSeparator())
-		mw.detailPanel.Add(widget.NewLabel("Variabili d'ambiente:"))
+		mw.detailPanel.Add(widget.NewLabel(i18n.T("detail.env")+":"))
 		for k, v := range server.Env {
 			mw.detailPanel.Add(widget.NewLabel("  " + k + " = " + v))
 		}
@@ -426,22 +456,22 @@ func (mw *MainWindow) showServerDetails(name string, server *domain.MCPServer, s
 
 	// Timeout
 	if server.Timeout > 0 {
-		mw.detailPanel.Add(widget.NewLabel("Timeout: " + string(rune(server.Timeout)) + "ms"))
+		mw.detailPanel.Add(widget.NewLabel(i18n.T("detail.timeout")+": "+fmt.Sprintf("%dms", server.Timeout)))
 	}
 
 	// Bottoni azione
 	mw.detailPanel.Add(widget.NewSeparator())
 
-	editBtn := widget.NewButtonWithIcon("Modifica", theme.DocumentCreateIcon(), func() {
-		mw.showEditServerDialog(name, server, scope == "Globale", projectPath)
+	editBtn := widget.NewButtonWithIcon(i18n.T("btn.edit"), theme.DocumentCreateIcon(), func() {
+		mw.showEditServerDialog(name, server, isGlobal, projectPath)
 	})
 
-	deleteBtn := widget.NewButtonWithIcon("Elimina", theme.DeleteIcon(), func() {
-		mw.confirmDeleteServer(name, scope == "Globale", projectPath)
+	deleteBtn := widget.NewButtonWithIcon(i18n.T("btn.delete"), theme.DeleteIcon(), func() {
+		mw.confirmDeleteServer(name, isGlobal, projectPath)
 	})
 
-	moveBtn := widget.NewButtonWithIcon("Sposta", theme.MoveDownIcon(), func() {
-		mw.showMoveServerDialog(name, scope == "Globale", projectPath)
+	moveBtn := widget.NewButtonWithIcon(i18n.T("btn.move"), theme.MoveDownIcon(), func() {
+		mw.showMoveServerDialog(name, isGlobal, projectPath)
 	})
 
 	mw.detailPanel.Add(container.NewCenter(container.NewHBox(editBtn, moveBtn, deleteBtn)))
@@ -451,7 +481,7 @@ func (mw *MainWindow) showServerDetails(name string, server *domain.MCPServer, s
 func (mw *MainWindow) showAddServerDialog() {
 	form := NewServerForm(mw.service, nil, "", true, "")
 
-	d := dialog.NewCustomConfirm("Aggiungi Server MCP", "Salva", "Annulla",
+	d := dialog.NewCustomConfirm(i18n.T("dialog.add_server"), i18n.T("btn.save"), i18n.T("btn.cancel"),
 		form.Container(),
 		func(ok bool) {
 			if ok {
@@ -472,7 +502,7 @@ func (mw *MainWindow) showAddServerDialog() {
 func (mw *MainWindow) showAddServerToProjectDialog(projectPath string) {
 	form := NewServerForm(mw.service, nil, "", false, projectPath)
 
-	d := dialog.NewCustomConfirm("Aggiungi Server MCP al Progetto", "Salva", "Annulla",
+	d := dialog.NewCustomConfirm(i18n.T("dialog.add_server_to_project"), i18n.T("btn.save"), i18n.T("btn.cancel"),
 		form.Container(),
 		func(ok bool) {
 			if ok {
@@ -493,7 +523,7 @@ func (mw *MainWindow) showAddServerToProjectDialog(projectPath string) {
 func (mw *MainWindow) showEditServerDialog(name string, server *domain.MCPServer, isGlobal bool, projectPath string) {
 	form := NewServerForm(mw.service, server, name, isGlobal, projectPath)
 
-	d := dialog.NewCustomConfirm("Modifica Server MCP", "Salva", "Annulla",
+	d := dialog.NewCustomConfirm(i18n.T("dialog.edit_server"), i18n.T("btn.save"), i18n.T("btn.cancel"),
 		form.Container(),
 		func(ok bool) {
 			if ok {
@@ -512,8 +542,8 @@ func (mw *MainWindow) showEditServerDialog(name string, server *domain.MCPServer
 
 // confirmDeleteServer conferma l'eliminazione di un server
 func (mw *MainWindow) confirmDeleteServer(name string, isGlobal bool, projectPath string) {
-	dialog.ShowConfirm("Elimina Server",
-		"Sei sicuro di voler eliminare il server '"+name+"'?",
+	dialog.ShowConfirm(i18n.T("dialog.delete_server"),
+		fmt.Sprintf(i18n.T("dialog.delete_confirm"), name),
 		func(ok bool) {
 			if ok {
 				var err error
@@ -545,18 +575,18 @@ func (mw *MainWindow) showMoveServerDialog(name string, isGlobal bool, projectPa
 		}
 
 		if len(options) == 0 {
-			dialog.ShowInformation("Nessun Progetto",
-				"Non ci sono progetti configurati in cui spostare il server.",
+			dialog.ShowInformation(i18n.T("dialog.no_projects"),
+				i18n.T("dialog.no_projects_msg"),
 				mw.window)
 			return
 		}
 
 		selectEntry := widget.NewSelect(options, nil)
 
-		d := dialog.NewCustomConfirm("Sposta Server",
-			"Sposta", "Annulla",
+		d := dialog.NewCustomConfirm(i18n.T("dialog.move_server"),
+			i18n.T("btn.move"), i18n.T("btn.cancel"),
 			container.NewVBox(
-				widget.NewLabel("Seleziona il progetto di destinazione:"),
+				widget.NewLabel(i18n.T("dialog.move_to_project")),
 				selectEntry,
 			),
 			func(ok bool) {
@@ -573,8 +603,8 @@ func (mw *MainWindow) showMoveServerDialog(name string, isGlobal bool, projectPa
 		d.Show()
 	} else {
 		// Sposta da progetto a globale
-		dialog.ShowConfirm("Sposta Server",
-			"Vuoi spostare il server '"+name+"' nello scope globale?",
+		dialog.ShowConfirm(i18n.T("dialog.move_server"),
+			fmt.Sprintf(i18n.T("dialog.move_to_global"), name),
 			func(ok bool) {
 				if ok {
 					if err := mw.service.MoveServerToGlobal(projectPath, name); err != nil {
