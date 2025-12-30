@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"fmt"
 	"sort"
 
 	"fyne.io/fyne/v2"
@@ -141,53 +142,141 @@ func (mw *MainWindow) createTree() *widget.Tree {
 		},
 		// isBranch
 		func(id widget.TreeNodeID) bool {
-			return id == "" || id == "global" || id == "projects" ||
-				(len(id) > 8 && id[:8] == "project:")
+			return mw.isBranchWithChildren(id)
 		},
 		// create
 		func(branch bool) fyne.CanvasObject {
-			return widget.NewLabel("")
+			return container.NewHBox(
+				widget.NewIcon(nil),
+				widget.NewLabel(""),
+			)
 		},
 		// update
 		func(id widget.TreeNodeID, branch bool, o fyne.CanvasObject) {
 			config := mw.service.GetConfiguration()
-			label := o.(*widget.Label)
+			box := o.(*fyne.Container)
+			icon := box.Objects[0].(*widget.Icon)
+			label := box.Objects[1].(*widget.Label)
 
-			switch {
-			case id == "global":
-				label.SetText("Globale")
-			case id == "projects":
-				label.SetText("Progetti")
-			case len(id) > 7 && id[:7] == "global:":
-				label.SetText(id[7:])
-			case len(id) > 8 && id[:8] == "project:":
-				path := id[8:]
-				if project, ok := config.Projects[path]; ok {
-					label.SetText(project.Name)
-				} else {
-					label.SetText(path)
-				}
-			case len(id) > 14 && id[:14] == "projectserver:":
-				// projectserver:path:name
-				rest := id[14:]
-				for i := len(rest) - 1; i >= 0; i-- {
-					if rest[i] == ':' {
-						label.SetText(rest[i+1:])
-						break
-					}
-				}
-			default:
-				label.SetText(id)
+			text := mw.getNodeText(id, config)
+			nodeIcon := mw.getNodeIcon(id, config)
+
+			icon.SetResource(nodeIcon)
+
+			if branch {
+				count := mw.getChildCount(id, config)
+				label.SetText(fmt.Sprintf("%s (%d)", text, count))
+			} else {
+				label.SetText(text)
 			}
 		},
 	)
 
 	tree.OnSelected = func(id widget.TreeNodeID) {
 		mw.selectedID = id
+		mw.toggleBranchIfNeeded(tree, id)
 		mw.updateDetailPanel(id)
 	}
 
 	return tree
+}
+
+// toggleBranchIfNeeded espande o collassa un branch quando viene selezionato
+func (mw *MainWindow) toggleBranchIfNeeded(tree *widget.Tree, id widget.TreeNodeID) {
+	if !mw.isBranchWithChildren(id) {
+		return
+	}
+
+	if tree.IsBranchOpen(id) {
+		tree.CloseBranch(id)
+	} else {
+		tree.OpenBranch(id)
+	}
+}
+
+// isBranch verifica se un nodo è strutturalmente un branch (può avere figli)
+func (mw *MainWindow) isBranch(id widget.TreeNodeID) bool {
+	return id == "global" || id == "projects" || (len(id) > 8 && id[:8] == "project:")
+}
+
+// isBranchWithChildren verifica se un nodo è un branch con almeno un figlio
+func (mw *MainWindow) isBranchWithChildren(id widget.TreeNodeID) bool {
+	// Root, global e projects sono sempre branch
+	if id == "" || id == "global" || id == "projects" {
+		return true
+	}
+
+	// I progetti sono branch solo se hanno server
+	if len(id) > 8 && id[:8] == "project:" {
+		config := mw.service.GetConfiguration()
+		return mw.getChildCount(id, config) > 0
+	}
+
+	return false
+}
+
+// getNodeIcon restituisce l'icona appropriata per un nodo
+func (mw *MainWindow) getNodeIcon(id widget.TreeNodeID, config *domain.Configuration) fyne.Resource {
+	switch {
+	case id == "global" || id == "projects":
+		// Categorie principali: nessuna icona (usa freccia del tree)
+		return nil
+	case len(id) > 8 && id[:8] == "project:":
+		// Progetto: cartella piena o vuota in base ai server
+		if mw.getChildCount(id, config) > 0 {
+			return theme.FolderIcon()
+		}
+		return theme.FolderOpenIcon()
+	case len(id) > 7 && id[:7] == "global:":
+		// Server globale
+		return theme.ComputerIcon()
+	case len(id) > 14 && id[:14] == "projectserver:":
+		// Server di progetto
+		return theme.ComputerIcon()
+	}
+	return nil
+}
+
+// getNodeText restituisce il testo da visualizzare per un nodo
+func (mw *MainWindow) getNodeText(id widget.TreeNodeID, config *domain.Configuration) string {
+	switch {
+	case id == "global":
+		return "Globale"
+	case id == "projects":
+		return "Progetti"
+	case len(id) > 7 && id[:7] == "global:":
+		return id[7:]
+	case len(id) > 8 && id[:8] == "project:":
+		path := id[8:]
+		if project, ok := config.Projects[path]; ok {
+			return project.Name
+		}
+		return path
+	case len(id) > 14 && id[:14] == "projectserver:":
+		rest := id[14:]
+		for i := len(rest) - 1; i >= 0; i-- {
+			if rest[i] == ':' {
+				return rest[i+1:]
+			}
+		}
+	}
+	return id
+}
+
+// getChildCount restituisce il numero di figli di un nodo branch
+func (mw *MainWindow) getChildCount(id widget.TreeNodeID, config *domain.Configuration) int {
+	switch {
+	case id == "global":
+		return len(config.GlobalServers)
+	case id == "projects":
+		return len(config.Projects)
+	case len(id) > 8 && id[:8] == "project:":
+		path := id[8:]
+		if project, ok := config.Projects[path]; ok {
+			return len(project.MCPServers)
+		}
+	}
+	return 0
 }
 
 // updateDetailPanel aggiorna il pannello dettagli

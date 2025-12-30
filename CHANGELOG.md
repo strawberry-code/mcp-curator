@@ -18,6 +18,8 @@ e questo progetto aderisce al [Semantic Versioning](https://semver.org/lang/it/)
 ### Modificato
 
 - Bottoni azione (Modifica, Sposta, Elimina) centrati orizzontalmente nel pannello dettagli
+- Tree view migliorato: click su item per expand/collapse, conteggio elementi nei branch
+- Icone contestuali: cartella piena/vuota per progetti, icona server per MCP server
 
 ## [0.0.1] - 2025-12-30
 
