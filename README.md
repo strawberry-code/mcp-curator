@@ -12,11 +12,18 @@ A native desktop application to view and manage MCP (Model Context Protocol) con
 
 ## Installation
 
+### Via Homebrew (Recommended)
+
+```bash
+brew tap strawberry-code/mcp-curator
+brew install --cask mcp-curator
+```
+
 ### From Release (macOS Apple Silicon)
 
 Download the latest `.dmg` from [Releases](https://github.com/strawberry-code/mcp-curator/releases) and drag to Applications.
 
-**Note:** The app is not signed. After first launch, if macOS shows "app is damaged", run:
+**Note:** The app is not signed. If macOS shows "app is damaged", run:
 ```bash
 xattr -cr "/Applications/MCP Curator.app"
 ```
