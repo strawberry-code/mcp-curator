@@ -89,15 +89,37 @@ func (mw *MainWindow) createToolbar() *fyne.Container {
 		mw.showAddServerDialog()
 	})
 
+	langSelect := widget.NewSelect([]string{"IT", "EN", "FR", "DE", "ES", "PT", "JA", "KO", "CN", "UK"}, func(lang string) {
+		mw.changeLanguage(lang)
+	})
+	langSelect.SetSelected("IT")
+
 	refreshBtn := widget.NewButtonWithIcon("Aggiorna", theme.ViewRefreshIcon(), func() {
 		mw.refresh()
 	})
 
-	return container.NewHBox(
-		addBtn,
-		layout.NewSpacer(),
+	rightControls := container.NewHBox(
+		langSelect,
 		refreshBtn,
 	)
+
+	toolbar := container.NewHBox(
+		addBtn,
+		layout.NewSpacer(),
+		rightControls,
+	)
+
+	// Header con padding e separatore
+	return container.NewVBox(
+		container.NewPadded(toolbar),
+		widget.NewSeparator(),
+	)
+}
+
+// changeLanguage cambia la lingua dell'interfaccia
+func (mw *MainWindow) changeLanguage(lang string) {
+	// TODO: implementare i18n
+	_ = lang
 }
 
 // createTree crea il tree view

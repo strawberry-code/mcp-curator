@@ -40,11 +40,12 @@ func (t *CuratorTheme) Color(name fyne.ThemeColorName, variant fyne.ThemeVariant
 	case theme.ColorNameHover:
 		return color.RGBA{R: 70, G: 70, B: 75, A: 255}
 	case theme.ColorNameFocus:
-		return ColorWhite
+		// Colore focus più scuro per mantenere leggibile il testo bianco
+		return color.RGBA{R: 100, G: 100, B: 110, A: 255}
 	case theme.ColorNameSelection:
 		return color.RGBA{R: 80, G: 80, B: 90, A: 255}
 	case theme.ColorNameInputBackground:
-		return color.RGBA{R: 35, G: 35, B: 38, A: 255}
+		return ColorGrayLight
 	case theme.ColorNameInputBorder:
 		return ColorGrayLight
 	case theme.ColorNameScrollBar:
@@ -65,6 +66,9 @@ func (t *CuratorTheme) Color(name fyne.ThemeColorName, variant fyne.ThemeVariant
 		return color.RGBA{R: 220, G: 180, B: 80, A: 255}
 	case theme.ColorNameError:
 		return color.RGBA{R: 220, G: 100, B: 100, A: 255}
+	case theme.ColorNameForegroundOnPrimary:
+		// Testo su sfondo focus/primary (bianco) → deve essere scuro
+		return ColorAnthracite
 	}
 	return theme.DefaultTheme().Color(name, variant)
 }
