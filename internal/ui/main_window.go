@@ -218,9 +218,10 @@ func (mw *MainWindow) isBranchWithChildren(id widget.TreeNodeID) bool {
 // getNodeIcon restituisce l'icona appropriata per un nodo
 func (mw *MainWindow) getNodeIcon(id widget.TreeNodeID, config *domain.Configuration) fyne.Resource {
 	switch {
-	case id == "global" || id == "projects":
-		// Categorie principali: nessuna icona (usa freccia del tree)
-		return nil
+	case id == "global":
+		return theme.HomeIcon()
+	case id == "projects":
+		return theme.FolderIcon()
 	case len(id) > 8 && id[:8] == "project:":
 		// Progetto: cartella piena o vuota in base ai server
 		if mw.getChildCount(id, config) > 0 {
@@ -283,46 +284,75 @@ func (mw *MainWindow) getChildCount(id widget.TreeNodeID, config *domain.Configu
 func (mw *MainWindow) updateDetailPanel(id string) {
 	config := mw.service.GetConfiguration()
 
-	var server *domain.MCPServer
-	var serverName string
-	var scope string
-	var projectPath string
-
 	switch {
+	case len(id) > 8 && id[:8] == "project:":
+		projectPath := id[8:]
+		if project, ok := config.Projects[projectPath]; ok {
+			mw.showProjectDetails(projectPath, project)
+			return
+		}
 	case len(id) > 7 && id[:7] == "global:":
-		serverName = id[7:]
+		serverName := id[7:]
 		if s, ok := config.GlobalServers[serverName]; ok {
-			server = &s
-			scope = "Globale"
+			mw.showServerDetails(serverName, &s, "Globale", "")
+			return
 		}
 	case len(id) > 14 && id[:14] == "projectserver:":
 		rest := id[14:]
 		for i := len(rest) - 1; i >= 0; i-- {
 			if rest[i] == ':' {
-				projectPath = rest[:i]
-				serverName = rest[i+1:]
+				projectPath := rest[:i]
+				serverName := rest[i+1:]
+				if project, ok := config.Projects[projectPath]; ok {
+					if s, ok := project.MCPServers[serverName]; ok {
+						mw.showServerDetails(serverName, &s, "Progetto: "+project.Name, projectPath)
+						return
+					}
+				}
 				break
 			}
 		}
-		if project, ok := config.Projects[projectPath]; ok {
-			if s, ok := project.MCPServers[serverName]; ok {
-				server = &s
-				scope = "Progetto: " + project.Name
-			}
-		}
-	default:
-		mw.detailPanel.RemoveAll()
-		mw.detailPanel.Add(widget.NewLabel("Seleziona un server per vedere i dettagli"))
-		return
 	}
 
-	if server == nil {
-		mw.detailPanel.RemoveAll()
-		mw.detailPanel.Add(widget.NewLabel("Server non trovato"))
-		return
+	mw.detailPanel.RemoveAll()
+	mw.detailPanel.Add(widget.NewLabel("Seleziona un elemento per vedere i dettagli"))
+}
+
+// showProjectDetails mostra i dettagli di un progetto
+func (mw *MainWindow) showProjectDetails(path string, project *domain.Project) {
+	mw.detailPanel.RemoveAll()
+
+	// Nome progetto
+	mw.detailPanel.Add(widget.NewLabelWithStyle("Progetto: "+project.Name, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}))
+	mw.detailPanel.Add(widget.NewSeparator())
+
+	// Path
+	mw.detailPanel.Add(widget.NewLabel("Path: " + path))
+
+	// Numero server MCP
+	serverCount := len(project.MCPServers)
+	mw.detailPanel.Add(widget.NewLabel(fmt.Sprintf("Server MCP: %d", serverCount)))
+
+	// File di configurazione presenti
+	mw.detailPanel.Add(widget.NewSeparator())
+	mw.detailPanel.Add(widget.NewLabel("Configurazioni:"))
+
+	if project.HasMCPJson {
+		mw.detailPanel.Add(widget.NewLabel("  • .mcp.json"))
+	}
+	if project.HasMCPLocal {
+		mw.detailPanel.Add(widget.NewLabel("  • .mcp.local.json"))
+	}
+	if !project.HasMCPJson && !project.HasMCPLocal {
+		mw.detailPanel.Add(widget.NewLabel("  • ~/.claude.json (settings)"))
 	}
 
-	mw.showServerDetails(serverName, server, scope, projectPath)
+	// Bottone per aggiungere server al progetto
+	mw.detailPanel.Add(widget.NewSeparator())
+	addServerBtn := widget.NewButtonWithIcon("Aggiungi Server", theme.ContentAddIcon(), func() {
+		mw.showAddServerToProjectDialog(path)
+	})
+	mw.detailPanel.Add(container.NewCenter(addServerBtn))
 }
 
 // showServerDetails mostra i dettagli di un server
@@ -400,6 +430,27 @@ func (mw *MainWindow) showAddServerDialog() {
 	form := NewServerForm(mw.service, nil, "", true, "")
 
 	d := dialog.NewCustomConfirm("Aggiungi Server MCP", "Salva", "Annulla",
+		form.Container(),
+		func(ok bool) {
+			if ok {
+				if err := form.Save(); err != nil {
+					dialog.ShowError(err, mw.window)
+					return
+				}
+				mw.refresh()
+			}
+		},
+		mw.window,
+	)
+	d.Resize(fyne.NewSize(500, 400))
+	d.Show()
+}
+
+// showAddServerToProjectDialog mostra il dialog per aggiungere un server a un progetto specifico
+func (mw *MainWindow) showAddServerToProjectDialog(projectPath string) {
+	form := NewServerForm(mw.service, nil, "", false, projectPath)
+
+	d := dialog.NewCustomConfirm("Aggiungi Server MCP al Progetto", "Salva", "Annulla",
 		form.Container(),
 		func(ok bool) {
 			if ok {
