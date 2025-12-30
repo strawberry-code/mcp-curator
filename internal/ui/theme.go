@@ -36,7 +36,7 @@ func (t *CuratorTheme) Color(name fyne.ThemeColorName, variant fyne.ThemeVariant
 	case theme.ColorNamePlaceHolder:
 		return ColorGrayText
 	case theme.ColorNamePrimary:
-		return ColorWhite
+		return ColorGrayLight
 	case theme.ColorNameHover:
 		return color.RGBA{R: 70, G: 70, B: 75, A: 255}
 	case theme.ColorNameFocus:

@@ -29,7 +29,7 @@ type MainWindow struct {
 // NewMainWindow crea la finestra principale
 func NewMainWindow(app fyne.App, service *application.MCPService) *MainWindow {
 	window := app.NewWindow(version.Name + " v" + version.Version)
-	window.Resize(fyne.NewSize(900, 600))
+	window.Resize(fyne.NewSize(900, 800))
 
 	mw := &MainWindow{
 		window:  window,

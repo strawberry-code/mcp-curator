@@ -7,6 +7,12 @@ e questo progetto aderisce al [Semantic Versioning](https://semver.org/lang/it/)
 
 ## [Unreleased]
 
+### Modificato
+
+- Form server: rimosso scroll annidato, entry singole per args e env
+- Colore bottoni dialog migliorato per maggior contrasto
+- Dimensione finestra iniziale aumentata a 900x800
+
 ## [0.0.2] - 2025-12-30
 
 ### Aggiunto

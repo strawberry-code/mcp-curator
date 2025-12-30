@@ -50,6 +50,7 @@ func (sf *ServerForm) build() {
 	// Nome
 	sf.nameEntry = widget.NewEntry()
 	sf.nameEntry.SetPlaceHolder("Nome del server")
+	sf.nameEntry.Wrapping = fyne.TextWrapOff
 	if sf.name != "" {
 		sf.nameEntry.SetText(sf.name)
 		sf.nameEntry.Disable()
@@ -62,20 +63,22 @@ func (sf *ServerForm) build() {
 	// Command
 	sf.commandEntry = widget.NewEntry()
 	sf.commandEntry.SetPlaceHolder("Comando (es: uvx, npx)")
+	sf.commandEntry.Wrapping = fyne.TextWrapOff
 
 	// Args
-	sf.argsEntry = widget.NewMultiLineEntry()
-	sf.argsEntry.SetPlaceHolder("Argomenti (uno per riga)")
-	sf.argsEntry.SetMinRowsVisible(3)
+	sf.argsEntry = widget.NewEntry()
+	sf.argsEntry.SetPlaceHolder("Argomenti separati da spazio (es: -y mcp-server)")
+	sf.argsEntry.Wrapping = fyne.TextWrapOff
 
 	// URL
 	sf.urlEntry = widget.NewEntry()
 	sf.urlEntry.SetPlaceHolder("URL (per http/sse)")
+	sf.urlEntry.Wrapping = fyne.TextWrapOff
 
 	// Env
-	sf.envEntry = widget.NewMultiLineEntry()
-	sf.envEntry.SetPlaceHolder("Variabili ambiente (KEY=value, una per riga)")
-	sf.envEntry.SetMinRowsVisible(2)
+	sf.envEntry = widget.NewEntry()
+	sf.envEntry.SetPlaceHolder("KEY=value, KEY2=value2 (separati da virgola)")
+	sf.envEntry.Wrapping = fyne.TextWrapOff
 
 	// Scope
 	config := sf.service.GetConfiguration()
@@ -100,15 +103,15 @@ func (sf *ServerForm) build() {
 		}
 		sf.commandEntry.SetText(sf.server.Command)
 		if len(sf.server.Args) > 0 {
-			sf.argsEntry.SetText(strings.Join(sf.server.Args, "\n"))
+			sf.argsEntry.SetText(strings.Join(sf.server.Args, " "))
 		}
 		sf.urlEntry.SetText(sf.server.URL)
 		if len(sf.server.Env) > 0 {
-			var envLines []string
+			var envPairs []string
 			for k, v := range sf.server.Env {
-				envLines = append(envLines, k+"="+v)
+				envPairs = append(envPairs, k+"="+v)
 			}
-			sf.envEntry.SetText(strings.Join(envLines, "\n"))
+			sf.envEntry.SetText(strings.Join(envPairs, ", "))
 		}
 	}
 
@@ -127,7 +130,7 @@ func (sf *ServerForm) build() {
 		sf.projectSelect.Disable()
 	}
 
-	// Costruisci container
+	// Costruisci container senza scroll (dialog sarà abbastanza alto)
 	sf.container = container.NewVBox(
 		widget.NewLabel("Nome:"),
 		sf.nameEntry,
@@ -162,21 +165,21 @@ func (sf *ServerForm) getServer() domain.MCPServer {
 		URL:     sf.urlEntry.Text,
 	}
 
-	// Parse args
+	// Parse args (separati da spazio)
 	argsText := strings.TrimSpace(sf.argsEntry.Text)
 	if argsText != "" {
-		server.Args = strings.Split(argsText, "\n")
+		server.Args = strings.Fields(argsText)
 	}
 
-	// Parse env
+	// Parse env (separati da virgola)
 	envText := strings.TrimSpace(sf.envEntry.Text)
 	if envText != "" {
 		server.Env = make(map[string]string)
-		for _, line := range strings.Split(envText, "\n") {
-			line = strings.TrimSpace(line)
-			if idx := strings.Index(line, "="); idx > 0 {
-				key := strings.TrimSpace(line[:idx])
-				value := strings.TrimSpace(line[idx+1:])
+		for _, pair := range strings.Split(envText, ",") {
+			pair = strings.TrimSpace(pair)
+			if idx := strings.Index(pair, "="); idx > 0 {
+				key := strings.TrimSpace(pair[:idx])
+				value := strings.TrimSpace(pair[idx+1:])
 				server.Env[key] = value
 			}
 		}
