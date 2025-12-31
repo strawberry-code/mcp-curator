@@ -1,6 +1,8 @@
 package ui
 
 import (
+	"encoding/json"
+	"errors"
 	"fmt"
 	"os/exec"
 	"path/filepath"
@@ -22,6 +24,7 @@ import (
 
 // MainWindow è la finestra principale dell'applicazione
 type MainWindow struct {
+	app         fyne.App
 	window      fyne.Window
 	service     *application.MCPService
 	tree        *widget.Tree
@@ -41,6 +44,7 @@ func NewMainWindow(app fyne.App, service *application.MCPService) *MainWindow {
 	window.Resize(fyne.NewSize(900, 800))
 
 	mw := &MainWindow{
+		app:     app,
 		window:  window,
 		service: service,
 	}
@@ -248,11 +252,6 @@ func (mw *MainWindow) toggleBranchIfNeeded(tree *widget.Tree, id widget.TreeNode
 	}
 }
 
-// isBranch verifica se un nodo è strutturalmente un branch (può avere figli)
-func (mw *MainWindow) isBranch(id widget.TreeNodeID) bool {
-	return id == "global" || id == "projects" || (len(id) > 8 && id[:8] == "project:")
-}
-
 // isBranchWithChildren verifica se un nodo è un branch con almeno un figlio
 func (mw *MainWindow) isBranchWithChildren(id widget.TreeNodeID) bool {
 	// Root, global e projects sono sempre branch
@@ -419,7 +418,7 @@ func (mw *MainWindow) showProjectDetails(path string, project *domain.Project) {
 	pathLabel := widget.NewLabel(i18n.T("detail.path") + ": " + path)
 
 	copyBtn := widget.NewButtonWithIcon("", theme.ContentCopyIcon(), func() {
-		mw.window.Clipboard().SetContent(path)
+		mw.app.Clipboard().SetContent(path)
 	})
 	copyBtn.Importance = widget.LowImportance
 
@@ -559,9 +558,8 @@ func (mw *MainWindow) createConfigFileLink(displayName, filePath string) *fyne.C
 
 // openFileWithDefaultApp apre un file con l'applicazione di default del sistema
 func (mw *MainWindow) openFileWithDefaultApp(filePath string) {
-	var cmd *exec.Cmd
 	// macOS usa "open", Linux "xdg-open", Windows "start"
-	cmd = exec.Command("open", filePath)
+	cmd := exec.Command("open", filePath)
 	if err := cmd.Start(); err != nil {
 		dialog.ShowError(fmt.Errorf("impossibile aprire il file: %v", err), mw.window)
 	}
@@ -643,11 +641,48 @@ func (mw *MainWindow) showServerDetails(name string, server *domain.MCPServer, s
 	mw.detailPanel.Add(container.NewCenter(container.NewHBox(editBtn, moveBtn, cloneBtn, deleteBtn)))
 }
 
-// showAddServerDialog mostra il dialog per aggiungere un server
+// showAddServerDialog mostra la scelta del metodo di aggiunta (form o JSON)
 func (mw *MainWindow) showAddServerDialog() {
-	form := NewServerForm(mw.service, nil, "", true, "")
+	mw.showAddMethodDialog(true, "")
+}
 
-	d := dialog.NewCustomConfirm(i18n.T("dialog.add_server"), i18n.T("btn.save"), i18n.T("btn.cancel"),
+// showAddMethodDialog mostra la scelta tra form e JSON per aggiungere un server
+func (mw *MainWindow) showAddMethodDialog(isGlobal bool, projectPath string) {
+	formBtn := widget.NewButtonWithIcon(i18n.T("dialog.add_via_form"), theme.DocumentCreateIcon(), func() {})
+	jsonBtn := widget.NewButtonWithIcon(i18n.T("dialog.add_via_json"), theme.ContentPasteIcon(), func() {})
+
+	content := container.NewVBox(
+		widget.NewLabel(i18n.T("dialog.add_method")),
+		widget.NewSeparator(),
+		container.NewGridWithColumns(2, formBtn, jsonBtn),
+	)
+
+	d := dialog.NewCustomWithoutButtons(i18n.T("dialog.add_server"), content, mw.window)
+
+	formBtn.OnTapped = func() {
+		d.Hide()
+		mw.showAddServerFormDialog(isGlobal, projectPath)
+	}
+
+	jsonBtn.OnTapped = func() {
+		d.Hide()
+		mw.showAddServerJSONDialog(isGlobal, projectPath)
+	}
+
+	d.Resize(fyne.NewSize(400, 150))
+	d.Show()
+}
+
+// showAddServerFormDialog mostra il dialog form per aggiungere un server
+func (mw *MainWindow) showAddServerFormDialog(isGlobal bool, projectPath string) {
+	form := NewServerForm(mw.service, nil, "", isGlobal, projectPath)
+
+	title := i18n.T("dialog.add_server")
+	if !isGlobal && projectPath != "" {
+		title = i18n.T("dialog.add_server_to_project")
+	}
+
+	d := dialog.NewCustomConfirm(title, i18n.T("btn.save"), i18n.T("btn.cancel"),
 		form.Container(),
 		func(ok bool) {
 			if ok {
@@ -664,25 +699,74 @@ func (mw *MainWindow) showAddServerDialog() {
 	d.Show()
 }
 
-// showAddServerToProjectDialog mostra il dialog per aggiungere un server a un progetto specifico
+// showAddServerToProjectDialog mostra la scelta del metodo di aggiunta per un progetto
 func (mw *MainWindow) showAddServerToProjectDialog(projectPath string) {
-	form := NewServerForm(mw.service, nil, "", false, projectPath)
+	mw.showAddMethodDialog(false, projectPath)
+}
 
-	d := dialog.NewCustomConfirm(i18n.T("dialog.add_server_to_project"), i18n.T("btn.save"), i18n.T("btn.cancel"),
-		form.Container(),
+// showAddServerJSONDialog mostra il dialog per aggiungere un server tramite JSON raw
+func (mw *MainWindow) showAddServerJSONDialog(isGlobal bool, projectPath string) {
+	jsonEntry := widget.NewMultiLineEntry()
+	jsonEntry.SetPlaceHolder(i18n.T("dialog.add_json_hint"))
+	jsonEntry.Wrapping = fyne.TextWrapWord
+
+	content := container.NewBorder(
+		widget.NewLabel(i18n.T("dialog.add_json_hint")),
+		nil, nil, nil,
+		jsonEntry,
+	)
+
+	d := dialog.NewCustomConfirm(i18n.T("dialog.add_json_title"), i18n.T("btn.save"), i18n.T("btn.cancel"),
+		content,
 		func(ok bool) {
-			if ok {
-				if err := form.Save(); err != nil {
-					dialog.ShowError(err, mw.window)
-					return
-				}
-				mw.refresh()
+			if !ok {
+				return
 			}
+
+			name, server, err := mw.parseServerJSON(jsonEntry.Text)
+			if err != nil {
+				dialog.ShowError(err, mw.window)
+				return
+			}
+
+			if err := mw.saveServer(name, server, isGlobal, projectPath); err != nil {
+				dialog.ShowError(err, mw.window)
+				return
+			}
+
+			mw.refresh()
 		},
 		mw.window,
 	)
 	d.Resize(fyne.NewSize(500, 400))
 	d.Show()
+}
+
+// parseServerJSON valida e converte il JSON in un MCPServer
+func (mw *MainWindow) parseServerJSON(jsonText string) (string, domain.MCPServer, error) {
+	if jsonText == "" {
+		return "", domain.MCPServer{}, errors.New(i18n.T("dialog.json_invalid"))
+	}
+
+	var serverData map[string]interface{}
+	if err := json.Unmarshal([]byte(jsonText), &serverData); err != nil {
+		return "", domain.MCPServer{}, fmt.Errorf("%s: %v", i18n.T("dialog.json_invalid"), err)
+	}
+
+	name, server, err := mw.service.ParseServerFromJSON(serverData)
+	if err != nil {
+		return "", domain.MCPServer{}, errors.New(i18n.T("dialog.json_missing_fields"))
+	}
+
+	return name, server, nil
+}
+
+// saveServer salva un server nello scope appropriato
+func (mw *MainWindow) saveServer(name string, server domain.MCPServer, isGlobal bool, projectPath string) error {
+	if isGlobal {
+		return mw.service.AddGlobalServer(name, server)
+	}
+	return mw.service.AddProjectServer(projectPath, name, server)
 }
 
 // showEditServerDialog mostra il dialog per modificare un server

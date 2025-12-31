@@ -48,7 +48,7 @@ func (r *ProjectConfigRepository) loadMCPFile(path string) (map[string]domain.MC
 	}
 
 	for name, serverData := range raw.MCPServers {
-		server, err := parseServer(serverData)
+		server, err := ParseServer(serverData)
 		if err != nil {
 			continue
 		}

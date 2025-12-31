@@ -60,7 +60,7 @@ func (r *ClaudeConfigRepository) Load() (*domain.Configuration, error) {
 	// Estrai mcpServers globali
 	if mcpServers, ok := r.rawConfig["mcpServers"].(map[string]interface{}); ok {
 		for name, serverData := range mcpServers {
-			server, err := parseServer(serverData)
+			server, err := ParseServer(serverData)
 			if err != nil {
 				continue
 			}
@@ -81,7 +81,7 @@ func (r *ClaudeConfigRepository) Load() (*domain.Configuration, error) {
 			// Carica server da ~/.claude.json projects.[path].mcpServers (project-specific settings)
 			if mcpServers, ok := projectMap["mcpServers"].(map[string]interface{}); ok {
 				for name, serverData := range mcpServers {
-					server, err := parseServer(serverData)
+					server, err := ParseServer(serverData)
 					if err != nil {
 						continue
 					}
@@ -209,8 +209,8 @@ func (r *ClaudeConfigRepository) cleanOldBackups() {
 	}
 }
 
-// parseServer converte un map[string]interface{} in MCPServer
-func parseServer(data interface{}) (domain.MCPServer, error) {
+// ParseServer converte un map[string]interface{} in MCPServer
+func ParseServer(data interface{}) (domain.MCPServer, error) {
 	serverMap, ok := data.(map[string]interface{})
 	if !ok {
 		return domain.MCPServer{}, fmt.Errorf("formato server non valido")
@@ -314,7 +314,7 @@ func LoadMCPFileServers(path string) map[string]domain.MCPServer {
 	}
 
 	for name, serverData := range raw.MCPServers {
-		server, err := parseServer(serverData)
+		server, err := ParseServer(serverData)
 		if err != nil {
 			continue
 		}

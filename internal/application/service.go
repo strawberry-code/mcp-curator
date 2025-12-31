@@ -192,3 +192,20 @@ func (s *MCPService) GetEffectiveServers(projectPath string) (map[string]domain.
 
 	return s.projectRepo.GetEffectiveServers(s.config, projectPath)
 }
+
+// ParseServerFromJSON converte un JSON raw in nome e MCPServer
+func (s *MCPService) ParseServerFromJSON(jsonData map[string]interface{}) (string, domain.MCPServer, error) {
+	name, hasName := jsonData["name"].(string)
+	_, hasType := jsonData["type"].(string)
+
+	if !hasName || name == "" || !hasType {
+		return "", domain.MCPServer{}, fmt.Errorf("missing required fields: name and type")
+	}
+
+	server, err := infrastructure.ParseServer(jsonData)
+	if err != nil {
+		return "", domain.MCPServer{}, err
+	}
+
+	return name, server, nil
+}
