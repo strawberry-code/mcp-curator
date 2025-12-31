@@ -340,9 +340,16 @@ func (mw *MainWindow) countLocalServers(path string, project *domain.Project) in
 	return len(mw.getLocalServers(path, project))
 }
 
-// getLocalServers restituisce i server MCP locali di un progetto
+// getLocalServers restituisce i server MCP di un progetto (da ~/.claude.json e file locali)
 func (mw *MainWindow) getLocalServers(path string, project *domain.Project) map[string]domain.MCPServer {
 	localServers := make(map[string]domain.MCPServer)
+
+	// Prima aggiungi i server da ~/.claude.json projects.[path].mcpServers
+	for name, server := range project.MCPServers {
+		localServers[name] = server
+	}
+
+	// Poi aggiungi/sovrascrivi con i server dai file locali (.mcp.json e .mcp.local.json)
 	if project.HasMCPJson {
 		mcpJsonPath := filepath.Join(path, ".mcp.json")
 		servers := infrastructure.LoadMCPFileServers(mcpJsonPath)
@@ -428,10 +435,20 @@ func (mw *MainWindow) showProjectDetails(path string, project *domain.Project) {
 	config := mw.service.GetConfiguration()
 	globalCount := len(config.GlobalServers)
 
-	// Carica server locali da file .mcp.json e .mcp.local.json
+	// Carica server del progetto da tutte le sorgenti
 	localServers := make(map[string]domain.MCPServer)
 	var localFiles []string
 
+	// Server da ~/.claude.json projects.[path].mcpServers
+	projectSettingsCount := len(project.MCPServers)
+	for name, server := range project.MCPServers {
+		localServers[name] = server
+	}
+	if projectSettingsCount > 0 {
+		localFiles = append(localFiles, "~/.claude.json")
+	}
+
+	// Server da file .mcp.json
 	if project.HasMCPJson {
 		mcpJsonPath := filepath.Join(path, ".mcp.json")
 		servers := infrastructure.LoadMCPFileServers(mcpJsonPath)
@@ -442,6 +459,8 @@ func (mw *MainWindow) showProjectDetails(path string, project *domain.Project) {
 			localFiles = append(localFiles, ".mcp.json")
 		}
 	}
+
+	// Server da file .mcp.local.json
 	if project.HasMCPLocal {
 		mcpLocalPath := filepath.Join(path, ".mcp.local.json")
 		servers := infrastructure.LoadMCPFileServers(mcpLocalPath)
@@ -480,9 +499,14 @@ func (mw *MainWindow) showProjectDetails(path string, project *domain.Project) {
 	mw.detailPanel.Add(widget.NewSeparator())
 	localContent := container.NewVBox()
 	if localCount > 0 {
-		// Mostra i file di configurazione locali
+		// Mostra i file di configurazione
 		for _, file := range localFiles {
-			filePath := filepath.Join(path, file)
+			var filePath string
+			if file == "~/.claude.json" {
+				filePath = mw.service.GetConfigPath()
+			} else {
+				filePath = filepath.Join(path, file)
+			}
 			localContent.Add(mw.createConfigFileLink(file, filePath))
 		}
 		// Lista nomi server locali
@@ -796,23 +820,27 @@ func (mw *MainWindow) showCloneServerDialog(name string, server *domain.MCPServe
 		checkGroup,
 	)
 
+	// Copia il server per evitare problemi con closure
+	serverCopy := *server
+
 	d := dialog.NewCustomConfirm(i18n.T("dialog.clone_server"),
 		i18n.T("btn.save"), i18n.T("btn.cancel"),
 		container.NewScroll(content),
 		func(ok bool) {
 			if ok && len(checkGroup.Selected) > 0 {
 				var clonedCount int
+				var lastErr error
 				for _, dest := range checkGroup.Selected {
 					var err error
 					if dest == i18n.T("form.scope_global") {
 						// Clona su globale
-						err = mw.service.AddGlobalServer(name, *server)
+						err = mw.service.AddGlobalServer(name, serverCopy)
 					} else {
 						// Clona su progetto
-						err = mw.service.AddProjectServer(dest, name, *server)
+						err = mw.service.AddProjectServer(dest, name, serverCopy)
 					}
 					if err != nil {
-						dialog.ShowError(err, mw.window)
+						lastErr = err
 						continue
 					}
 					clonedCount++
@@ -822,6 +850,8 @@ func (mw *MainWindow) showCloneServerDialog(name string, server *domain.MCPServe
 					dialog.ShowInformation(i18n.T("dialog.clone_server"),
 						fmt.Sprintf(i18n.T("dialog.clone_success"), name),
 						mw.window)
+				} else if lastErr != nil {
+					dialog.ShowError(lastErr, mw.window)
 				}
 			}
 		},
