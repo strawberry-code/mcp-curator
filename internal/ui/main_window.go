@@ -612,7 +612,11 @@ func (mw *MainWindow) showServerDetails(name string, server *domain.MCPServer, s
 		mw.showMoveServerDialog(name, isGlobal, projectPath)
 	})
 
-	mw.detailPanel.Add(container.NewCenter(container.NewHBox(editBtn, moveBtn, deleteBtn)))
+	cloneBtn := widget.NewButtonWithIcon(i18n.T("btn.clone"), theme.ContentCopyIcon(), func() {
+		mw.showCloneServerDialog(name, server, isGlobal, projectPath)
+	})
+
+	mw.detailPanel.Add(container.NewCenter(container.NewHBox(editBtn, moveBtn, cloneBtn, deleteBtn)))
 }
 
 // showAddServerDialog mostra il dialog per aggiungere un server
@@ -755,6 +759,76 @@ func (mw *MainWindow) showMoveServerDialog(name string, isGlobal bool, projectPa
 			mw.window,
 		)
 	}
+}
+
+// showCloneServerDialog mostra il dialog per clonare un server su altri scope
+func (mw *MainWindow) showCloneServerDialog(name string, server *domain.MCPServer, isGlobal bool, projectPath string) {
+	config := mw.service.GetConfiguration()
+
+	// Costruisci lista destinazioni: Globale + tutti i progetti
+	var options []string
+
+	// Aggiungi "Globale" solo se il server non è già globale
+	if !isGlobal {
+		options = append(options, i18n.T("form.scope_global"))
+	}
+
+	// Aggiungi tutti i progetti (escluso quello corrente se il server è di progetto)
+	for path := range config.Projects {
+		if !isGlobal && path == projectPath {
+			continue // Salta il progetto corrente
+		}
+		options = append(options, path)
+	}
+
+	if len(options) == 0 {
+		dialog.ShowInformation(i18n.T("dialog.no_projects"),
+			i18n.T("dialog.no_projects_msg"),
+			mw.window)
+		return
+	}
+
+	// Usa CheckGroup per selezione multipla
+	checkGroup := widget.NewCheckGroup(options, nil)
+
+	content := container.NewVBox(
+		widget.NewLabel(i18n.T("dialog.clone_to")),
+		checkGroup,
+	)
+
+	d := dialog.NewCustomConfirm(i18n.T("dialog.clone_server"),
+		i18n.T("btn.save"), i18n.T("btn.cancel"),
+		container.NewScroll(content),
+		func(ok bool) {
+			if ok && len(checkGroup.Selected) > 0 {
+				var clonedCount int
+				for _, dest := range checkGroup.Selected {
+					var err error
+					if dest == i18n.T("form.scope_global") {
+						// Clona su globale
+						err = mw.service.AddGlobalServer(name, *server)
+					} else {
+						// Clona su progetto
+						err = mw.service.AddProjectServer(dest, name, *server)
+					}
+					if err != nil {
+						dialog.ShowError(err, mw.window)
+						continue
+					}
+					clonedCount++
+				}
+				if clonedCount > 0 {
+					mw.refresh()
+					dialog.ShowInformation(i18n.T("dialog.clone_server"),
+						fmt.Sprintf(i18n.T("dialog.clone_success"), name),
+						mw.window)
+				}
+			}
+		},
+		mw.window,
+	)
+	d.Resize(fyne.NewSize(500, 400))
+	d.Show()
 }
 
 // refresh ricarica la configurazione e aggiorna l'UI senza ricreare tutto

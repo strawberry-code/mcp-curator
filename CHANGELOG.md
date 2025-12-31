@@ -14,6 +14,7 @@ e questo progetto aderisce al [Semantic Versioning](https://semver.org/lang/it/)
 - Vista progetto con sezioni separate per configurazioni globali e locali
 - Sezioni espandibili (accordion) per configurazioni globali (collassata) e locali (espansa)
 - Caricamento server MCP da file .mcp.json e .mcp.local.json nella vista progetto
+- Funzione "Clona su..." per duplicare server MCP su scope globale o progetti multipli
 
 ## [0.0.3] - 2025-12-30
 
