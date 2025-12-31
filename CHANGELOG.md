@@ -7,6 +7,8 @@ e questo progetto aderisce al [Semantic Versioning](https://semver.org/lang/it/)
 
 ## [Unreleased]
 
+## [0.0.4] - 2025-12-31
+
 ### Aggiunto
 
 - File di configurazione cliccabili nella vista progetto con apertura nell'editor di default
@@ -77,7 +79,8 @@ e questo progetto aderisce al [Semantic Versioning](https://semver.org/lang/it/)
 - Go 1.24+
 - Fyne v2.7.1 (UI toolkit nativo cross-platform)
 
-[Unreleased]: https://github.com/strawberry-code/mcp-curator/compare/v0.0.3...HEAD
+[Unreleased]: https://github.com/strawberry-code/mcp-curator/compare/v0.0.4...HEAD
+[0.0.4]: https://github.com/strawberry-code/mcp-curator/compare/v0.0.3...v0.0.4
 [0.0.3]: https://github.com/strawberry-code/mcp-curator/compare/v0.0.2...v0.0.3
 [0.0.2]: https://github.com/strawberry-code/mcp-curator/compare/v0.0.1...v0.0.2
 [0.0.1]: https://github.com/strawberry-code/mcp-curator/releases/tag/v0.0.1
