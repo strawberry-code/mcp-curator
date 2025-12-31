@@ -2,6 +2,8 @@ package ui
 
 import (
 	"fmt"
+	"os/exec"
+	"path/filepath"
 	"sort"
 
 	"fyne.io/fyne/v2"
@@ -388,13 +390,21 @@ func (mw *MainWindow) showProjectDetails(path string, project *domain.Project) {
 	mw.detailPanel.Add(widget.NewLabel(i18n.T("detail.configs")+":"))
 
 	if project.HasMCPJson {
-		mw.detailPanel.Add(widget.NewLabel("  • .mcp.json"))
+		mcpJsonPath := filepath.Join(path, ".mcp.json")
+		mw.detailPanel.Add(mw.createConfigFileLink(".mcp.json", mcpJsonPath))
 	}
 	if project.HasMCPLocal {
-		mw.detailPanel.Add(widget.NewLabel("  • .mcp.local.json"))
+		mcpLocalPath := filepath.Join(path, ".mcp.local.json")
+		mw.detailPanel.Add(mw.createConfigFileLink(".mcp.local.json", mcpLocalPath))
 	}
 	if !project.HasMCPJson && !project.HasMCPLocal {
-		mw.detailPanel.Add(widget.NewLabel("  • ~/.claude.json (settings)"))
+		// ~/.claude.json per progetti senza file locali
+		homeDir, _ := filepath.Abs(filepath.Join("~", ".claude.json"))
+		// Risolvi ~ manualmente
+		if home, err := exec.Command("sh", "-c", "echo $HOME").Output(); err == nil {
+			homeDir = filepath.Join(string(home[:len(home)-1]), ".claude.json")
+		}
+		mw.detailPanel.Add(mw.createConfigFileLink("~/.claude.json (settings)", homeDir))
 	}
 
 	// Bottone per aggiungere server al progetto
@@ -403,6 +413,25 @@ func (mw *MainWindow) showProjectDetails(path string, project *domain.Project) {
 		mw.showAddServerToProjectDialog(path)
 	})
 	mw.detailPanel.Add(container.NewCenter(addServerBtn))
+}
+
+// createConfigFileLink crea un link cliccabile per un file di configurazione
+func (mw *MainWindow) createConfigFileLink(displayName, filePath string) *fyne.Container {
+	btn := widget.NewButtonWithIcon(displayName, theme.FileIcon(), func() {
+		mw.openFileWithDefaultApp(filePath)
+	})
+	btn.Importance = widget.LowImportance
+	return container.NewHBox(layout.NewSpacer(), btn, layout.NewSpacer())
+}
+
+// openFileWithDefaultApp apre un file con l'applicazione di default del sistema
+func (mw *MainWindow) openFileWithDefaultApp(filePath string) {
+	var cmd *exec.Cmd
+	// macOS usa "open", Linux "xdg-open", Windows "start"
+	cmd = exec.Command("open", filePath)
+	if err := cmd.Start(); err != nil {
+		dialog.ShowError(fmt.Errorf("impossibile aprire il file: %v", err), mw.window)
+	}
 }
 
 // showServerDetails mostra i dettagli di un server
