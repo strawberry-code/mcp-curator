@@ -11,6 +11,9 @@ e questo progetto aderisce al [Semantic Versioning](https://semver.org/lang/it/)
 
 - File di configurazione cliccabili nella vista progetto con apertura nell'editor di default
 - Bottoni Copy Path e Open Path accanto al percorso progetto
+- Vista progetto con sezioni separate per configurazioni globali e locali
+- Sezioni espandibili (accordion) per configurazioni globali (collassata) e locali (espansa)
+- Caricamento server MCP da file .mcp.json e .mcp.local.json nella vista progetto
 
 ## [0.0.3] - 2025-12-30
 

@@ -16,6 +16,7 @@ import (
 	"github.com/strawberry-code/mcp-curator/internal/application"
 	"github.com/strawberry-code/mcp-curator/internal/domain"
 	"github.com/strawberry-code/mcp-curator/internal/i18n"
+	"github.com/strawberry-code/mcp-curator/internal/infrastructure"
 	"github.com/strawberry-code/mcp-curator/internal/version"
 )
 
@@ -178,12 +179,13 @@ func (mw *MainWindow) createTree() *widget.Tree {
 				sort.Strings(ids)
 				return ids
 			}
-			// Server di un progetto
+			// Server locali di un progetto (da .mcp.json e .mcp.local.json)
 			if len(id) > 8 && id[:8] == "project:" {
 				projectPath := id[8:]
 				if project, ok := config.Projects[projectPath]; ok {
-					ids := make([]string, 0, len(project.MCPServers))
-					for name := range project.MCPServers {
+					localServers := mw.getLocalServers(projectPath, project)
+					ids := make([]string, 0, len(localServers))
+					for name := range localServers {
 						ids = append(ids, "projectserver:"+projectPath+":"+name)
 					}
 					sort.Strings(ids)
@@ -326,10 +328,36 @@ func (mw *MainWindow) getChildCount(id widget.TreeNodeID, config *domain.Configu
 	case len(id) > 8 && id[:8] == "project:":
 		path := id[8:]
 		if project, ok := config.Projects[path]; ok {
-			return len(project.MCPServers)
+			// Conta solo i server locali (da .mcp.json e .mcp.local.json)
+			return mw.countLocalServers(path, project)
 		}
 	}
 	return 0
+}
+
+// countLocalServers conta i server MCP locali di un progetto
+func (mw *MainWindow) countLocalServers(path string, project *domain.Project) int {
+	return len(mw.getLocalServers(path, project))
+}
+
+// getLocalServers restituisce i server MCP locali di un progetto
+func (mw *MainWindow) getLocalServers(path string, project *domain.Project) map[string]domain.MCPServer {
+	localServers := make(map[string]domain.MCPServer)
+	if project.HasMCPJson {
+		mcpJsonPath := filepath.Join(path, ".mcp.json")
+		servers := infrastructure.LoadMCPFileServers(mcpJsonPath)
+		for name, server := range servers {
+			localServers[name] = server
+		}
+	}
+	if project.HasMCPLocal {
+		mcpLocalPath := filepath.Join(path, ".mcp.local.json")
+		servers := infrastructure.LoadMCPFileServers(mcpLocalPath)
+		for name, server := range servers {
+			localServers[name] = server
+		}
+	}
+	return localServers
 }
 
 // updateDetailPanel aggiorna il pannello dettagli
@@ -356,7 +384,9 @@ func (mw *MainWindow) updateDetailPanel(id string) {
 				projectPath := rest[:i]
 				serverName := rest[i+1:]
 				if project, ok := config.Projects[projectPath]; ok {
-					if s, ok := project.MCPServers[serverName]; ok {
+					// Cerca nei server locali
+					localServers := mw.getLocalServers(projectPath, project)
+					if s, ok := localServers[serverName]; ok {
 						mw.showServerDetails(serverName, &s, i18n.T("detail.project")+": "+project.Name, projectPath)
 						return
 					}
@@ -394,31 +424,97 @@ func (mw *MainWindow) showProjectDetails(path string, project *domain.Project) {
 	pathRow := container.NewHBox(pathLabel, copyBtn, openBtn)
 	mw.detailPanel.Add(pathRow)
 
-	// Numero server MCP
-	serverCount := len(project.MCPServers)
-	mw.detailPanel.Add(widget.NewLabel(fmt.Sprintf("%s: %d", i18n.T("detail.mcp_servers"), serverCount)))
+	// Ottieni configurazione per contare i server globali
+	config := mw.service.GetConfiguration()
+	globalCount := len(config.GlobalServers)
 
-	// File di configurazione presenti
-	mw.detailPanel.Add(widget.NewSeparator())
-	mw.detailPanel.Add(widget.NewLabel(i18n.T("detail.configs")+":"))
+	// Carica server locali da file .mcp.json e .mcp.local.json
+	localServers := make(map[string]domain.MCPServer)
+	var localFiles []string
 
 	if project.HasMCPJson {
 		mcpJsonPath := filepath.Join(path, ".mcp.json")
-		mw.detailPanel.Add(mw.createConfigFileLink(".mcp.json", mcpJsonPath))
+		servers := infrastructure.LoadMCPFileServers(mcpJsonPath)
+		for name, server := range servers {
+			localServers[name] = server
+		}
+		if len(servers) > 0 {
+			localFiles = append(localFiles, ".mcp.json")
+		}
 	}
 	if project.HasMCPLocal {
 		mcpLocalPath := filepath.Join(path, ".mcp.local.json")
-		mw.detailPanel.Add(mw.createConfigFileLink(".mcp.local.json", mcpLocalPath))
-	}
-	if !project.HasMCPJson && !project.HasMCPLocal {
-		// ~/.claude.json per progetti senza file locali
-		homeDir, _ := filepath.Abs(filepath.Join("~", ".claude.json"))
-		// Risolvi ~ manualmente
-		if home, err := exec.Command("sh", "-c", "echo $HOME").Output(); err == nil {
-			homeDir = filepath.Join(string(home[:len(home)-1]), ".claude.json")
+		servers := infrastructure.LoadMCPFileServers(mcpLocalPath)
+		for name, server := range servers {
+			localServers[name] = server
 		}
-		mw.detailPanel.Add(mw.createConfigFileLink("~/.claude.json (settings)", homeDir))
+		if len(servers) > 0 {
+			localFiles = append(localFiles, ".mcp.local.json")
+		}
 	}
+	localCount := len(localServers)
+
+	// Sezione Configurazioni Globali (collassata di default)
+	mw.detailPanel.Add(widget.NewSeparator())
+	globalContent := container.NewVBox()
+	if globalCount > 0 {
+		var globalNames []string
+		for name := range config.GlobalServers {
+			globalNames = append(globalNames, name)
+		}
+		sort.Strings(globalNames)
+		for _, name := range globalNames {
+			globalContent.Add(widget.NewLabel("  • " + name))
+		}
+	}
+	globalAccordion := widget.NewAccordion(
+		widget.NewAccordionItem(
+			fmt.Sprintf("%s (%d)", i18n.T("detail.global_configs"), globalCount),
+			globalContent,
+		),
+	)
+	// Globali: collassato di default (non apriamo nessun item)
+	mw.detailPanel.Add(globalAccordion)
+
+	// Sezione Configurazioni Locali (espansa di default)
+	mw.detailPanel.Add(widget.NewSeparator())
+	localContent := container.NewVBox()
+	if localCount > 0 {
+		// Mostra i file di configurazione locali
+		for _, file := range localFiles {
+			filePath := filepath.Join(path, file)
+			localContent.Add(mw.createConfigFileLink(file, filePath))
+		}
+		// Lista nomi server locali
+		var localNames []string
+		for name := range localServers {
+			localNames = append(localNames, name)
+		}
+		sort.Strings(localNames)
+		for _, name := range localNames {
+			localContent.Add(widget.NewLabel("  • " + name))
+		}
+	} else {
+		localContent.Add(widget.NewLabel("  " + i18n.T("detail.no_local_servers")))
+		// Mostra link ai file locali se esistono ma sono vuoti
+		if project.HasMCPJson {
+			mcpJsonPath := filepath.Join(path, ".mcp.json")
+			localContent.Add(mw.createConfigFileLink(".mcp.json (vuoto)", mcpJsonPath))
+		}
+		if project.HasMCPLocal {
+			mcpLocalPath := filepath.Join(path, ".mcp.local.json")
+			localContent.Add(mw.createConfigFileLink(".mcp.local.json (vuoto)", mcpLocalPath))
+		}
+	}
+	localAccordion := widget.NewAccordion(
+		widget.NewAccordionItem(
+			fmt.Sprintf("%s (%d)", i18n.T("detail.local_configs"), localCount),
+			localContent,
+		),
+	)
+	// Locali: espanso di default
+	localAccordion.Open(0)
+	mw.detailPanel.Add(localAccordion)
 
 	// Bottone per aggiungere server al progetto
 	mw.detailPanel.Add(widget.NewSeparator())

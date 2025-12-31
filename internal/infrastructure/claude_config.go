@@ -78,6 +78,7 @@ func (r *ClaudeConfigRepository) Load() (*domain.Configuration, error) {
 
 			project := domain.NewProject(path)
 
+			// Carica server da ~/.claude.json projects.[path].mcpServers (project-specific settings)
 			if mcpServers, ok := projectMap["mcpServers"].(map[string]interface{}); ok {
 				for name, serverData := range mcpServers {
 					server, err := parseServer(serverData)
@@ -293,4 +294,33 @@ func serverToMap(server domain.MCPServer) map[string]interface{} {
 func fileExists(path string) bool {
 	_, err := os.Stat(path)
 	return err == nil
+}
+
+// LoadMCPFileServers carica i server da un file .mcp.json o .mcp.local.json
+func LoadMCPFileServers(path string) map[string]domain.MCPServer {
+	result := make(map[string]domain.MCPServer)
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return result
+	}
+
+	var raw struct {
+		MCPServers map[string]interface{} `json:"mcpServers"`
+	}
+
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return result
+	}
+
+	for name, serverData := range raw.MCPServers {
+		server, err := parseServer(serverData)
+		if err != nil {
+			continue
+		}
+		server.Name = name
+		result[name] = server
+	}
+
+	return result
 }
