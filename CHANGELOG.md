@@ -7,6 +7,11 @@ e questo progetto aderisce al [Semantic Versioning](https://semver.org/lang/it/)
 
 ## [Unreleased]
 
+### Aggiunto
+
+- File di configurazione cliccabili nella vista progetto con apertura nell'editor di default
+- Bottoni Copy Path e Open Path accanto al percorso progetto
+
 ## [0.0.3] - 2025-12-30
 
 ### Aggiunto

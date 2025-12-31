@@ -378,8 +378,21 @@ func (mw *MainWindow) showProjectDetails(path string, project *domain.Project) {
 	mw.detailPanel.Add(widget.NewLabelWithStyle(i18n.T("detail.project")+": "+project.Name, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}))
 	mw.detailPanel.Add(widget.NewSeparator())
 
-	// Path
-	mw.detailPanel.Add(widget.NewLabel(i18n.T("detail.path")+": "+path))
+	// Path con bottoni Copy e Open
+	pathLabel := widget.NewLabel(i18n.T("detail.path") + ": " + path)
+
+	copyBtn := widget.NewButtonWithIcon("", theme.ContentCopyIcon(), func() {
+		mw.window.Clipboard().SetContent(path)
+	})
+	copyBtn.Importance = widget.LowImportance
+
+	openBtn := widget.NewButtonWithIcon("", theme.FolderOpenIcon(), func() {
+		mw.openFileWithDefaultApp(path)
+	})
+	openBtn.Importance = widget.LowImportance
+
+	pathRow := container.NewHBox(pathLabel, copyBtn, openBtn)
+	mw.detailPanel.Add(pathRow)
 
 	// Numero server MCP
 	serverCount := len(project.MCPServers)
