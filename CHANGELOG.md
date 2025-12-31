@@ -21,6 +21,8 @@ e questo progetto aderisce al [Semantic Versioning](https://semver.org/lang/it/)
 
 - Refactoring Clean Architecture: parsing JSON server spostato nel layer Application
 - Rimosso dead code e corretto uso API deprecate (Clipboard)
+- Refactoring SOLID: main_window.go (962→156 righe) suddiviso in tree_view.go, detail_panel.go, server_dialogs.go
+- Refactoring SOLID: claude_config.go (326→216 righe) con estrazione server_parser.go
 
 ## [0.0.3] - 2025-12-30
 
